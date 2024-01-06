@@ -1,45 +1,35 @@
 Vagrant.configure("2") do |config|
-  servers=[
-      {
-        :hostname => "Server1",
-        :box => "ubuntu/bionic64",
-        :ip => "172.16.1.5",
-        :ssh_port => '2200'
-      },
-      {
-        :hostname => "Server2",
-        :box => "ubuntu/bionic64",
-        :ip => "172.16.1.6",
-        :ssh_port => '2201'
-      },
-      {
-        :hostname => "Server3",
-        :box => "ubuntu/bionic64",
-        :ip => "172.16.1.7",
-        :ssh_port => '2202'
-      }
-    ]
+  # Define common configurations
+  common_vm_config = {
+    box: "ubuntu/bionic64",
+    memory: "512",
+    cpus: 1,
+    network: "private_network",
+    provision: "shell"
+  }
 
-  # running loops to provision the VMs
-  servers.each do |machine|
-      config.vm.define machine[:hostname] do |node|
-          node.vm.box = machine[:box]
-          node.vm.hostname = machine[:hostname]
-          node.vm.network :private_network, ip: machine[:ip]
-          node.vm.network "forwarded_port", guest: 22, host: machine[:ssh_port], id: "ssh"
-          node.vm.synced_folder "data/", "/home/vagrant/data"
-          node.vm.provision "file", source: "pringle_flavours.txt", destination: "/home/vagrant/pringle_flavours.txt"
-  
-        # configuring VM resources
-          node.vm.provider :virtualbox do |vb|
-              vb.customize ["modifyvm", :id, "--memory", 512]
-              vb.customize ["modifyvm", :id, "--cpus", 1]
-          end
+  # Define individual VMs
+  all_vms = [
+    { name: "Web01", network_type: "dhcp", provision_script: "lamp.sh/" },
+    { name: "Web02", network_type: "dhcp", provision_script: "lamp.sh/" },
+    { name: "Db01", network_type: "dhcp", provision_script: "lamp.sh/" }
+  ]
+
+  # Choose which VMs to provision (e.g., VMs 1, 2, and 3)
+  selected_vms = all_vms[0..1]
+
+  # Loop through the selected VMs and apply configurations
+  selected_vms.each do |vm|
+    config.vm.define vm[:name] do |node|
+      node.vm.box = common_vm_config[:box]
+      node.vm.network common_vm_config[:network], type: vm[:network_type]
+      node.vm.provider "virtualbox" do |vb|
+        vb.memory = common_vm_config[:memory]
+        vb.cpus = common_vm_config[:cpus]
       end
+      node.vm.provision common_vm_config[:provision] do |provision|
+        provision.path = vm[:provision_script]
+      end
+    end
   end
-config.vm.provision "shell", inline: <<-SHELL
-  apt-get update 
-  apt-get install apache2 -y
-  systemctl status apache2
-SHELL
 end
