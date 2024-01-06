@@ -20,6 +20,7 @@ Vagrant.configure("2") do |config|
       }
     ]
 
+  # running loops to provision the VMs
   servers.each do |machine|
       config.vm.define machine[:hostname] do |node|
           node.vm.box = machine[:box]
@@ -36,4 +37,9 @@ Vagrant.configure("2") do |config|
           end
       end
   end
+config.vm.provision "shell", inline: <<-SHELL
+  apt-get update 
+  apt-get install apache2 -y
+  systemctl status apache2
+SHELL
 end
